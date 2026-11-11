@@ -219,14 +219,45 @@ def transform_crs(
         >>> gdf_mercator = transform_crs(gdf, 'EPSG:3857')
         >>> print(f"New CRS: {gdf_mercator.crs}")
     """
-    # TODO: Implement this function
-    # Hints:
-    # - Check if gdf has a CRS defined (gdf.crs)
-    # - Use gdf.to_crs(target_crs) for transformation
-    # - Handle cases where CRS is None
-    # - Validate target_crs is valid
-    # - Return a copy, not modify original
-    raise NotImplementedError("transform_crs not yet implemented")
+import geopandas as gpd
+from typing import Union
+
+def transform_crs(
+    gdf: gpd.GeoDataFrame, 
+    target_crs: Union[str, int]
+) -> gpd.GeoDataFrame:
+    """
+    Transform GeoDataFrame to a different coordinate reference system.
+    
+    Handles CRS transformation with proper validation and error handling.
+    Essential for ensuring spatial data alignment and accurate measurements.
+    
+    Args:
+        gdf: Input GeoDataFrame
+        target_crs: Target CRS (e.g., 'EPSG:4326', 'EPSG:3857', or EPSG code as int)
+        
+    Returns:
+        New GeoDataFrame in the target CRS
+        
+    Raises:
+        ValueError: If GeoDataFrame has no CRS or target CRS is invalid
+        
+    Example:
+        >>> # Transform to Web Mercator (EPSG:3857)
+        >>> gdf_mercator = transform_crs(gdf, 'EPSG:3857')
+        >>> print(f"New CRS: {gdf_mercator.crs}")
+    """
+    # Check if input has CRS
+    if gdf.crs is None:
+        raise ValueError("Input GeoDataFrame has no CRS defined. Cannot transform.")
+    
+    # Validate target CRS by trying to transform
+    try:
+        result = gdf.to_crs(target_crs)
+    except Exception as e:
+        raise ValueError(f"Invalid target CRS '{target_crs}': {str(e)}")
+    
+    return result
 
 
 # Function 4: Geometry Operations
@@ -272,44 +303,103 @@ def geometry_operations(
         >>> centroids = result['result']
     """
 import geopandas as gpd
-from typing import Union
+from typing import Dict, Any
 
-def transform_crs(
-    gdf: gpd.GeoDataFrame, 
-    target_crs: Union[str, int]
-) -> gpd.GeoDataFrame:
+def geometry_operations(
+    gdf: gpd.GeoDataFrame,
+    operation: str = 'buffer',
+    **kwargs
+) -> Dict[str, Any]:
     """
-    Transform GeoDataFrame to a different coordinate reference system.
+    Perform fundamental geometry operations on spatial data.
     
-    Handles CRS transformation with proper validation and error handling.
-    Essential for ensuring spatial data alignment and accurate measurements.
+    Supports multiple geometric operations:
+    - 'buffer': Create buffers around geometries
+    - 'centroid': Calculate geometric centers
+    - 'area': Calculate polygon areas
+    - 'length': Calculate line lengths/perimeters
+    - 'simplify': Generalize geometries
     
     Args:
         gdf: Input GeoDataFrame
-        target_crs: Target CRS (e.g., 'EPSG:4326', 'EPSG:3857', or EPSG code as int)
-        
+        operation: Operation to perform
+        **kwargs: Operation-specific parameters:
+            - buffer: distance (float, required)
+            - simplify: tolerance (float, required)
+            
     Returns:
-        New GeoDataFrame in the target CRS
+        Dictionary containing:
+        - 'result': GeoDataFrame with operation results
+        - 'statistics': Dictionary of computed statistics
+        - 'operation': Name of operation performed
         
     Raises:
-        ValueError: If GeoDataFrame has no CRS or target CRS is invalid
-        
-    Example:
-        >>> # Transform to Web Mercator (EPSG:3857)
-        >>> gdf_mercator = transform_crs(gdf, 'EPSG:3857')
-        >>> print(f"New CRS: {gdf_mercator.crs}")
+        ValueError: If operation is invalid or parameters are missing
     """
-    # Check if input has CRS
-    if gdf.crs is None:
-        raise ValueError("Input GeoDataFrame has no CRS defined. Cannot transform.")
+    valid_operations = ['buffer', 'centroid', 'area', 'length', 'simplify']
     
-    # Validate target CRS by trying to transform
-    try:
-        result = gdf.to_crs(target_crs)
-    except Exception as e:
-        raise ValueError(f"Invalid target CRS '{target_crs}': {str(e)}")
+    if operation not in valid_operations:
+        raise ValueError(f"Invalid operation '{operation}'. Must be one of: {valid_operations}")
     
-    return result
+    result_dict = {
+        'operation': operation,
+        'statistics': {}
+    }
+    
+    if operation == 'buffer':
+        if 'distance' not in kwargs:
+            raise ValueError("Buffer operation requires 'distance' parameter")
+        
+        distance = kwargs['distance']
+        result_gdf = gdf.copy()
+        result_gdf.geometry = gdf.geometry.buffer(distance)
+        
+        result_dict['result'] = result_gdf
+        result_dict['statistics']['buffer_distance'] = distance
+        result_dict['statistics']['feature_count'] = len(result_gdf)
+        
+    elif operation == 'centroid':
+        result_gdf = gdf.copy()
+        result_gdf.geometry = gdf.geometry.centroid
+        
+        result_dict['result'] = result_gdf
+        result_dict['statistics']['feature_count'] = len(result_gdf)
+        
+    elif operation == 'area':
+        result_gdf = gdf.copy()
+        areas = gdf.geometry.area
+        result_gdf['area'] = areas
+        
+        result_dict['result'] = result_gdf
+        result_dict['statistics']['total_area'] = areas.sum()
+        result_dict['statistics']['mean_area'] = areas.mean()
+        result_dict['statistics']['min_area'] = areas.min()
+        result_dict['statistics']['max_area'] = areas.max()
+        
+    elif operation == 'length':
+        result_gdf = gdf.copy()
+        lengths = gdf.geometry.length
+        result_gdf['length'] = lengths
+        
+        result_dict['result'] = result_gdf
+        result_dict['statistics']['total_length'] = lengths.sum()
+        result_dict['statistics']['mean_length'] = lengths.mean()
+        result_dict['statistics']['min_length'] = lengths.min()
+        result_dict['statistics']['max_length'] = lengths.max()
+        
+    elif operation == 'simplify':
+        if 'tolerance' not in kwargs:
+            raise ValueError("Simplify operation requires 'tolerance' parameter")
+        
+        tolerance = kwargs['tolerance']
+        result_gdf = gdf.copy()
+        result_gdf.geometry = gdf.geometry.simplify(tolerance)
+        
+        result_dict['result'] = result_gdf
+        result_dict['statistics']['tolerance'] = tolerance
+        result_dict['statistics']['feature_count'] = len(result_gdf)
+    
+    return result_dict
 
 
 # Function 5: Spatial Relationships
