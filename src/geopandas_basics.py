@@ -271,16 +271,45 @@ def geometry_operations(
         >>> result = geometry_operations(gdf, 'centroid')
         >>> centroids = result['result']
     """
-    # TODO: Implement this function
-    # Hints:
-    # - Support multiple operations with if/elif statements
-    # - For buffer: use gdf.geometry.buffer(distance)
-    # - For centroid: use gdf.geometry.centroid
-    # - For area: use gdf.geometry.area
-    # - For length: use gdf.geometry.length
-    # - For simplify: use gdf.geometry.simplify(tolerance)
-    # - Return results in standardized dictionary format
-    raise NotImplementedError("geometry_operations not yet implemented")
+import geopandas as gpd
+from typing import Union
+
+def transform_crs(
+    gdf: gpd.GeoDataFrame, 
+    target_crs: Union[str, int]
+) -> gpd.GeoDataFrame:
+    """
+    Transform GeoDataFrame to a different coordinate reference system.
+    
+    Handles CRS transformation with proper validation and error handling.
+    Essential for ensuring spatial data alignment and accurate measurements.
+    
+    Args:
+        gdf: Input GeoDataFrame
+        target_crs: Target CRS (e.g., 'EPSG:4326', 'EPSG:3857', or EPSG code as int)
+        
+    Returns:
+        New GeoDataFrame in the target CRS
+        
+    Raises:
+        ValueError: If GeoDataFrame has no CRS or target CRS is invalid
+        
+    Example:
+        >>> # Transform to Web Mercator (EPSG:3857)
+        >>> gdf_mercator = transform_crs(gdf, 'EPSG:3857')
+        >>> print(f"New CRS: {gdf_mercator.crs}")
+    """
+    # Check if input has CRS
+    if gdf.crs is None:
+        raise ValueError("Input GeoDataFrame has no CRS defined. Cannot transform.")
+    
+    # Validate target CRS by trying to transform
+    try:
+        result = gdf.to_crs(target_crs)
+    except Exception as e:
+        raise ValueError(f"Invalid target CRS '{target_crs}': {str(e)}")
+    
+    return result
 
 
 # Function 5: Spatial Relationships
